@@ -1,6 +1,7 @@
+pub type Indices = (Index, Index);
+
 #[derive(Eq, PartialEq, Hash, Clone, Copy, Debug)]
 pub enum Index {
-    Invalid = 0,
     A = 1,
     B = 2,
     C = 3,
@@ -20,7 +21,7 @@ impl From<u16> for Index {
             5 => Self::E,
             6 => Self::F,
             7 => Self::G,
-            _ => Self::Invalid,
+            _ => unreachable!(),
         }
     }
 }

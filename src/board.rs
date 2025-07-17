@@ -1,6 +1,11 @@
 use std::{collections::HashMap, fmt::Display};
+use termion::{color::*, style::Reset};
 
-use crate::{field::Field, index::Index, player::Player};
+use crate::{
+    field::Field,
+    index::{Index, Indices},
+    player::Player,
+};
 
 const INDICES: [Index; 7] = [
     Index::A,
@@ -14,7 +19,7 @@ const INDICES: [Index; 7] = [
 
 #[derive(Debug)]
 pub struct Board {
-    fields: HashMap<(Index, Index), Field>,
+    fields: HashMap<Indices, Field>,
     pub current_player: Player,
     other_player: Player,
 }
@@ -25,17 +30,16 @@ impl Board {
 
         for i in &INDICES {
             for j in &INDICES {
-                board.insert(
-                    (*i, *j),
-                    match (*i, *j) {
-                        (Index::D, Index::D) => Field::Invalid,
-                        (_, Index::D) => Field::Empty,
-                        (Index::D, _) => Field::Empty,
-                        (k, l) if k == l => Field::Empty,
-                        (k, l) if (8 - k as u8) == (l as u8) => Field::Empty,
-                        _ => Field::Invalid,
-                    },
-                );
+                let indices = (i, j);
+                let field = match indices {
+                    (Index::D, Index::D) => continue,
+                    (_, Index::D) => Field::Empty,
+                    (Index::D, _) => Field::Empty,
+                    (k, l) if k == l => Field::Empty,
+                    (k, l) if (8 - *k as u8) == (*l as u8) => Field::Empty,
+                    _ => continue,
+                };
+                board.insert((*i, *j), field); // empty
             }
         }
 
@@ -46,99 +50,97 @@ impl Board {
         }
     }
 
-    pub fn get(&self, index: (Index, Index)) -> Option<&Field> {
+    pub fn get(&self, index: Indices) -> Option<&Field> {
         self.fields.get(&index)
     }
 
-    pub fn play(&mut self, index: (Index, Index)) {
-        match self.current_player {
-            Player::None => unreachable!(),
-            Player::White(t @ 0) => {}
-            Player::Black(t @ 0) => {}
-            // when player has tokens and just inserting (phase 1)
-            player => {
-                // dbg!(player);
-                if let Some(Field::Empty) = self.get(index) {
-                    self.current_player = self.current_player.use_token();
-                    self.fields.insert(index, Field::Valid(self.current_player));
-                    self.switch_player();
+    pub fn play(&mut self, index: Indices) {
+        if let Some(field) = self.get(index) {
+            match self.current_player {
+                // Phase 2: Moving pieces
+                Player::White(_t @ 0) => {}
+                Player::Black(_t @ 0) => {}
+                // Phase 1: Placing Pieces
+                _ => {
+                    if let Field::Empty = field {
+                        self.place_piece(index);
+                        if !self.mill() {
+                            //malom dolgok
+                            self.switch_player();
+                        }
+                    }
                 }
             }
         };
-        /*
-        if let Some(Field::Valid(player)) = self.get(index) {
-            if player == self.current_player {
-                // if let Action::Move(target) = self.current_action
-                if self.current_action == Action::Move {}
-
-            }
-
-            // if player is cyurrrent,
-            // then its a moving ation
-        }
-        if let Some(Field::Valid(Player::None)) = self.get(index) {
-            match self.current_player {
-                Player::None => unreachable!(),
-                Player::White(t @ 0) => {}
-                Player::Black(t @ 0) => {}
-                // when player has tokens and just inserting (phase 1)
-                _ => {
-                    self.current_player = self.current_player.use_token();
-                    self.fields.insert(index, Field::Valid(self.current_player));
-                }
-            };
-        }
-        // mill()
-        */
     }
 
-    fn mill() {}
+    fn place_piece(&mut self, index: Indices) {
+        self.current_player = self.current_player.use_token();
+        self.fields.insert(index, Field::Taken(self.current_player));
+    }
 
-    pub fn get_by_tui(x: u16, y: u16) -> (Index, Index) {
+    // fn move_piece(&mut self, index: Indices) {
+    //     if let Field::Taken(p) = self.get(index) {
+    //         if p == self.current_player {}
+    //     }
+    // }
+
+    fn mill(&self) -> bool {
+        false
+    }
+
+    pub fn get_indices(x: u16, y: u16) -> Option<Indices> {
         let x1 = (x as f32 - 2.0) / 5.0;
         let x2 = x1.ceil();
         let x3 = x1 - x2;
-        match (x, y) {
-            (_, y) if y % 2 == 1 => (Index::Invalid, Index::Invalid),
-            (_, _) if x3 < -0.21 => (Index::from(x2 as u16), Index::from(y / 2)),
-            _ => (Index::Invalid, Index::Invalid),
+
+        if y % 2 == 0 && x3 < -0.21 {
+            Some((Index::from(x2 as u16), Index::from(y / 2)))
+        } else {
+            None
         }
     }
 
     fn switch_player(&mut self) {
         std::mem::swap(&mut self.current_player, &mut self.other_player);
-
-        // self.current_player = match self.current_player {
-        //     Player::None => unreachable!(),
-        //     Player::White(b) => {
-        //         if let Player::Black(black_left) = self.other_player {
-        //             self.other_player = Player::White(b);
-        //             Player::Black(black_left)
-        //         }
-        //     }
-        //     Player::Black() => Player::White(),
-        // };
     }
 }
 
 impl Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "+{}+\n\r", "=".repeat(35));
+        self.write_fg(f)?;
+        self.write_bg(f)?;
+        write!(f, "+{}+\n\r", "=".repeat(35))?;
         for y in &INDICES {
-            write!(f, "|");
+            write!(f, "|")?;
 
             for x in &INDICES {
-                let field = self.fields.get(&(*x, *y)).unwrap();
-                write!(f, " {field} ");
+                match self.get((*x, *y)) {
+                    Some(field) => write!(f, " {field} ")?,
+                    None => write!(f, "     ")?,
+                };
+                self.write_fg(f)?;
+                self.write_bg(f)?;
+
                 if let Index::G = *x {
-                    write!(f, "|\n\r");
+                    write!(f, "|\n\r")?;
                     if *y != Index::G {
-                        write!(f, "|{}|\n\r", " ".repeat(35));
+                        write!(f, "|{}|\n\r", " ".repeat(35))?;
                     }
                 }
             }
         }
-        write!(f, "+{}+\n\r", "=".repeat(35));
-        write!(f, "Current Player: {:?}", self.current_player)
+        write!(f, "+{}+\n\r", "=".repeat(35))?;
+        write!(f, "{}Current Player: {:?}\n\r", Reset, self.current_player)
+    }
+}
+
+impl Color for Board {
+    fn write_fg(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str(LightBlack.fg_str())
+    }
+
+    fn write_bg(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str(LightYellow.bg_str())
     }
 }
