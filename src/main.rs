@@ -1,38 +1,37 @@
-use std::io::{Write, stdin, stdout};
-use termion::event::{Event, Key, MouseEvent};
-use termion::input::{MouseTerminal, TermRead};
-use termion::raw::IntoRawMode;
-
 mod board;
 mod field;
 mod index;
 mod player;
+mod token;
 
-use board::Board;
+use board::*;
+use field::*;
+use index::*;
+use player::*;
+use token::*;
+
+use termion::color::*;
+use termion::cursor::Goto;
+use termion::event::{Event, Key, MouseEvent};
+use termion::input::{MouseTerminal, TermRead};
+use termion::raw::IntoRawMode;
+use termion::style::Reset;
+
+use std::io::{Write, stdin, stdout};
 
 fn main() {
-    let mut board = Board::init();
+    let board = &mut Board::init();
 
     let stdin = stdin();
     let mut stdout = MouseTerminal::from(stdout().into_raw_mode().unwrap());
 
-    write!(
-        stdout,
-        "{}{}{board}",
-        termion::clear::All,
-        termion::cursor::Goto(1, 1),
-    )
-    .unwrap();
+    write!(stdout, "{}{}{board}", termion::clear::All, Goto(1, 1),).unwrap();
     stdout.flush().unwrap();
 
     for c in stdin.events() {
-        write!(
-            stdout,
-            "{}{}{board}",
-            termion::clear::All,
-            termion::cursor::Goto(1, 1),
-        )
-        .unwrap();
+        write!(stdout, "{}{}{board}", termion::clear::All, Goto(1, 1),).unwrap();
+        stdout.flush().unwrap();
+
         let evt = c.unwrap();
         match evt {
             Event::Key(Key::Ctrl('c')) => break,
@@ -42,13 +41,21 @@ fn main() {
                         board.play(i);
 
                         #[cfg(debug_assertions)]
-                        write!(stdout, "{}|{:?}|", termion::cursor::Goto(30, 16), i).unwrap();
+                        write!(
+                            stdout,
+                            "{}{}  {:?}",
+                            termion::cursor::Goto(30, 17 - board.modulo() as u16),
+                            Fg(LightBlack),
+                            i
+                        )
+                        .unwrap();
                     };
                 }
                 _ => (),
             },
             _ => {}
         }
+        #[cfg(debug_assertions)]
         stdout.flush().unwrap();
     }
 

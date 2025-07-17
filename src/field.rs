@@ -1,33 +1,25 @@
-use std::fmt::Display;
-use termion::color::*;
+use super::*;
 
-use crate::player::Player;
-
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub enum Field {
     Empty,
-    Taken(Player),
+    Taken(Token),
 }
 
-impl Display for Field {
+impl Field {
+    pub fn empty(&self) -> bool {
+        match self {
+            Field::Empty => true,
+            _ => false,
+        }
+    }
+}
+
+impl std::fmt::Display for Field {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let char = match self {
-            Field::Empty => "O".to_string(),
-            Field::Taken(player) => format!("{player}"),
-        };
-
-        write!(f, "{char}")?;
-        // self.write_fg(f)?;
-        self.write_bg(f)
-    }
-}
-
-impl Color for Field {
-    fn write_fg(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str(LightBlack.fg_str())
-    }
-
-    fn write_bg(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str(LightYellow.bg_str())
+        match self {
+            Field::Empty => write!(f, "◌"),
+            Field::Taken(token) => write!(f, "{token}"),
+        }
     }
 }

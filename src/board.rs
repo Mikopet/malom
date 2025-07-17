@@ -1,11 +1,6 @@
-use std::{collections::HashMap, fmt::Display};
-use termion::{color::*, style::Reset};
+use super::*;
 
-use crate::{
-    field::Field,
-    index::{Index, Indices},
-    player::Player,
-};
+use std::collections::HashMap;
 
 const INDICES: [Index; 7] = [
     Index::A,
@@ -20,8 +15,8 @@ const INDICES: [Index; 7] = [
 #[derive(Debug)]
 pub struct Board {
     fields: HashMap<Indices, Field>,
-    pub current_player: Player,
-    other_player: Player,
+    players: Vec<Player>,
+    current_player: usize,
     highlight: Option<Indices>,
 }
 
@@ -46,50 +41,48 @@ impl Board {
 
         Self {
             fields: board,
-            current_player: Player::White(9),
-            other_player: Player::Black(9),
+            players: vec![Player::new(&White), Player::new(&Black)],
+            current_player: 0,
             highlight: None,
         }
+    }
+
+    pub fn modulo(&self) -> usize {
+        self.current_player % 2
     }
 
     pub fn get(&self, index: Indices) -> Option<&Field> {
         self.fields.get(&index)
     }
 
+    fn insert(&mut self, index: Indices, t: Token) {
+        self.fields.insert(index, Field::Taken(t));
+    }
+
+    fn get_current_player(&self) -> &Player {
+        let index = self.modulo();
+        self.players.get(index).unwrap()
+    }
+
+    fn get_current_player_mut(&mut self) -> &mut Player {
+        let index = self.modulo();
+        self.players.get_mut(index).unwrap()
+    }
+
     pub fn play(&mut self, index: Indices) {
         if let Some(field) = self.get(index) {
-            match self.current_player {
-                // Phase 2: Moving pieces
-                Player::White(_t @ 0) => {}
-                Player::Black(_t @ 0) => {}
-                // Phase 1: Placing Pieces
-                _ => {
-                    if let Field::Empty = field {
-                        self.place_piece(index);
-                        if !self.mill() {
-                            //malom dolgok
-                            self.switch_player();
-                        }
-                    }
-                }
+            // Phase 1: Placing Pieces
+            if self.get_current_player().free_tokens() > 0 && field.empty() {
+                self.place_piece(index);
+                self.switch_player();
             }
         };
     }
 
     fn place_piece(&mut self, index: Indices) {
-        self.current_player = self.current_player.use_token();
-        self.fields.insert(index, Field::Taken(self.current_player));
+        let token = self.get_current_player_mut().use_token();
+        self.insert(index, token);
         self.highlight = Some(index);
-    }
-
-    // fn move_piece(&mut self, index: Indices) {
-    //     if let Field::Taken(p) = self.get(index) {
-    //         if p == self.current_player {}
-    //     }
-    // }
-
-    fn mill(&self) -> bool {
-        false
     }
 
     pub fn get_indices(x: u16, y: u16) -> Option<Indices> {
@@ -105,45 +98,69 @@ impl Board {
     }
 
     fn switch_player(&mut self) {
-        std::mem::swap(&mut self.current_player, &mut self.other_player);
+        self.current_player += 1;
+    }
+
+    /// DRAWING
+
+    fn draw_board(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", Fg(Black))?;
+        write!(f, "╋{}╋\n\r", "━".repeat(35))?;
+        for _ in 0..=12 {
+            write!(f, "┃{}┃\n\r", " ".repeat(35))?;
+        }
+        write!(f, "╋{}╋\n\r", "━".repeat(35))
+    }
+
+    fn draw_rect(&self, f: &mut std::fmt::Formatter<'_>, w: usize, h: usize) -> std::fmt::Result {
+        let x = 18 - w / 2;
+        let y = 8 - h / 2;
+
+        write!(f, "{}", Fg(LightBlack))?;
+        write!(f, "{}{}", goto(x + 1, y), "─".repeat(w))?;
+
+        for i in 1..h - 1 {
+            write!(f, "{}│{}│", goto(x, y + i), " ".repeat(w))?;
+        }
+        write!(f, "{}{}", goto(x + 1, h + y - 1), "─".repeat(w))
     }
 }
 
-impl Display for Board {
+fn goto(x: usize, y: usize) -> Goto {
+    Goto(x as u16, y as u16)
+}
+
+impl std::fmt::Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.write_fg(f)?;
         self.write_bg(f)?;
-        write!(f, "+{}+\n\r", "=".repeat(35))?;
+        self.draw_board(f)?;
+        self.draw_rect(f, 29, 13)?;
+        self.draw_rect(f, 19, 9)?;
+        self.draw_rect(f, 9, 5)?;
+
         for y in &INDICES {
-            write!(f, "|")?;
-
             for x in &INDICES {
-                let index = (*x, *y);
-                let hlc = if self.highlight == Some(index) {
-                    Green.fg_str()
-                } else {
-                    LightBlack.fg_str()
-                };
-                match self.get(index) {
-                    Some(field) => match field {
-                        Field::Empty => write!(f, "  {field}  ")?,
-                        Field::Taken(player) => write!(f, " {c}({field}{c}) ", c = hlc)?,
-                    },
-                    None => write!(f, "     ")?,
-                };
-                self.write_fg(f)?;
-                self.write_bg(f)?;
+                let indices = (*x, *y);
 
-                if let Index::G = *x {
-                    write!(f, "|\n\r")?;
-                    if *y != Index::G {
-                        write!(f, "|{}|\n\r", " ".repeat(35))?;
-                    }
+                if let Some(field) = self.get(indices) {
+                    write!(f, "{}", Goto(*x as u16 * 5 - 1, *y as u16 * 2),)?;
+                    write!(f, "{field}")?;
+                    self.write_fg(f)?;
+                    self.write_bg(f)?;
                 }
             }
         }
-        write!(f, "+{}+\n\r", "=".repeat(35))?;
-        write!(f, "{}Current Player: {:?}\n\r", Reset, self.current_player)
+
+        for (i, p) in self.players.iter().enumerate() {
+            let current = if self.modulo() == i {
+                format!("{}*", Fg(LightCyan))
+            } else {
+                format!("{} ", Reset)
+            };
+            write!(f, "{}{}{current} {}\n\r", Goto(2, 16 + i as u16), Reset, p)?;
+        }
+        Ok(())
     }
 }
 

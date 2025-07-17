@@ -1,48 +1,45 @@
-use std::fmt::Display;
-use termion::color::*;
+use super::*;
 
-#[derive(Clone, Copy, Debug)]
-pub enum Player {
-    White(u8),
-    Black(u8),
+#[cfg(debug_assertions)]
+const PLACEABLE: u8 = 4;
+#[cfg(not(debug_assertions))]
+const PLACEABLE: u8 = 9;
+
+#[derive(Debug)]
+pub struct Player {
+    pub token: Token,
+    placeable: u8,
+    removable: u8,
 }
 
 impl Player {
-    pub fn use_token(&self) -> Self {
-        match self {
-            Player::White(t @ 1..) => Player::White(t - 1),
-            Player::Black(t @ 1..) => Player::Black(t - 1),
-            Player::White(_) => Player::White(0),
-            Player::Black(_) => Player::Black(0),
+    pub fn new<C: termion::color::Color>(c: &'static C) -> Self {
+        Self {
+            token: Token(c),
+            placeable: PLACEABLE,
+            removable: 0,
         }
+    }
+
+    pub fn free_tokens(&self) -> u8 {
+        self.placeable
+    }
+
+    pub fn use_token(&mut self) -> Token {
+        if self.placeable > 0 {
+            self.placeable -= 1;
+        }
+
+        self.token
     }
 }
 
-impl Display for Player {
+impl std::fmt::Display for Player {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let char = match self {
-            Player::White(_) => 'W',
-            Player::Black(_) => 'B',
-        };
-
-        self.write_fg(f)?;
-        self.write_bg(f)?;
-        write!(f, "{char}")
-    }
-}
-
-impl Color for Player {
-    fn write_fg(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Player::White(_) => f.write_str(Black.fg_str()),
-            Player::Black(_) => f.write_str(White.fg_str()),
-        }
-    }
-
-    fn write_bg(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Player::White(_) => f.write_str(White.bg_str()),
-            Player::Black(_) => f.write_str(Black.bg_str()),
-        }
+        write!(
+            f,
+            "{:?}: place({}), remove({})",
+            self.token.0, self.placeable, self.removable
+        )
     }
 }
