@@ -22,6 +22,7 @@ pub struct Board {
     fields: HashMap<Indices, Field>,
     pub current_player: Player,
     other_player: Player,
+    highlight: Option<Indices>,
 }
 
 impl Board {
@@ -45,8 +46,9 @@ impl Board {
 
         Self {
             fields: board,
-            current_player: Player::White(4),
-            other_player: Player::Black(4),
+            current_player: Player::White(9),
+            other_player: Player::Black(9),
+            highlight: None,
         }
     }
 
@@ -77,6 +79,7 @@ impl Board {
     fn place_piece(&mut self, index: Indices) {
         self.current_player = self.current_player.use_token();
         self.fields.insert(index, Field::Taken(self.current_player));
+        self.highlight = Some(index);
     }
 
     // fn move_piece(&mut self, index: Indices) {
@@ -115,8 +118,17 @@ impl Display for Board {
             write!(f, "|")?;
 
             for x in &INDICES {
-                match self.get((*x, *y)) {
-                    Some(field) => write!(f, " {field} ")?,
+                let index = (*x, *y);
+                let hlc = if self.highlight == Some(index) {
+                    Green.fg_str()
+                } else {
+                    LightBlack.fg_str()
+                };
+                match self.get(index) {
+                    Some(field) => match field {
+                        Field::Empty => write!(f, "  {field}  ")?,
+                        Field::Taken(player) => write!(f, " {c}({field}{c}) ", c = hlc)?,
+                    },
                     None => write!(f, "     ")?,
                 };
                 self.write_fg(f)?;

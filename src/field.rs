@@ -12,18 +12,13 @@ pub enum Field {
 impl Display for Field {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let char = match self {
-            Field::Empty => " O ".to_string(),
-            Field::Taken(player) => format!("({player}"),
+            Field::Empty => "O".to_string(),
+            Field::Taken(player) => format!("{player}"),
         };
 
         write!(f, "{char}")?;
-        self.write_fg(f)?;
-        self.write_bg(f)?;
-        if let Field::Empty = self {
-            write!(f, "")
-        } else {
-            write!(f, ")")
-        }
+        // self.write_fg(f)?;
+        self.write_bg(f)
     }
 }
 
