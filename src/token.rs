@@ -8,3 +8,11 @@ impl std::fmt::Display for Token {
         write!(f, "{}⬤", Fg(self.0))
     }
 }
+
+impl PartialEq for Token {
+    fn eq(&self, other: &Self) -> bool {
+        let c1 = format!("{:?}", self.0);
+        let c2 = format!("{:?}", other.0);
+        c1 == c2
+    }
+}

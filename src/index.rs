@@ -1,6 +1,6 @@
 pub type Indices = (Index, Index);
 
-#[derive(Eq, PartialEq, Hash, Clone, Copy, Debug)]
+#[derive(Eq, PartialEq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
 pub enum Index {
     A = 1,
     B = 2,

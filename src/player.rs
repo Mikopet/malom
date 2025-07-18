@@ -1,7 +1,7 @@
 use super::*;
 
 #[cfg(debug_assertions)]
-const PLACEABLE: u8 = 4;
+const PLACEABLE: u8 = 5;
 #[cfg(not(debug_assertions))]
 const PLACEABLE: u8 = 9;
 
@@ -31,6 +31,18 @@ impl Player {
         }
 
         self.token
+    }
+
+    pub fn add_remove(&mut self, n: u8) {
+        self.removable += n
+    }
+
+    pub fn remove_remove(&mut self) {
+        self.removable -= 1
+    }
+
+    pub fn get_remove(&self) -> u8 {
+        self.removable
     }
 }
 

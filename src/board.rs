@@ -59,6 +59,10 @@ impl Board {
         self.fields.insert(index, Field::Taken(t));
     }
 
+    fn remove(&mut self, index: Indices) {
+        self.fields.insert(index, Field::Empty);
+    }
+
     fn get_current_player(&self) -> &Player {
         let index = self.modulo();
         self.players.get(index).unwrap()
@@ -70,19 +74,86 @@ impl Board {
     }
 
     pub fn play(&mut self, index: Indices) {
+        // force remove action
+        if let Some(Field::Taken(t)) = self.get(index) {
+            if self.get_current_player().get_remove() > 0 {
+                if self.get_current_player().token != *t {
+                    self.remove_piece(index);
+                    return;
+                }
+            }
+        }
         if let Some(field) = self.get(index) {
             // Phase 1: Placing Pieces
             if self.get_current_player().free_tokens() > 0 && field.empty() {
                 self.place_piece(index);
-                self.switch_player();
             }
         };
     }
 
-    fn place_piece(&mut self, index: Indices) {
+    fn place_piece(&mut self, i: Indices) {
         let token = self.get_current_player_mut().use_token();
-        self.insert(index, token);
-        self.highlight = Some(index);
+        self.insert(i, token);
+        self.highlight = Some(i);
+        if !self.mill(i) {
+            self.switch_player();
+        }
+    }
+
+    fn remove_piece(&mut self, i: Indices) {
+        // let token = self.get_current_player_mut().use_token();
+        self.remove(i);
+        self.get_current_player_mut().remove_remove();
+        self.highlight = Some(i);
+        if self.get_current_player().get_remove() == 0 {
+            self.switch_player();
+        }
+    }
+    fn mill(&mut self, i: Indices) -> bool {
+        let token = self.get_current_player().token;
+
+        let adjacent = self
+            .fields
+            .iter_mut()
+            .filter(|((x, y), _)| match (i.0 as u8, i.1 as u8) {
+                (..4, 4) if *y == Index::D => *x < Index::D,
+                (4.., 4) if *y == Index::D => *x > Index::D,
+                (4, ..4) if *x == Index::D => *y < Index::D,
+                (4, 4..) if *x == Index::D => *y > Index::D,
+                _ => i.0 == *x || i.1 == *y,
+            })
+            .filter_map(|(i, f)| match f {
+                Field::Taken(t) if *t == token => Some(i),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        let acc = adjacent
+            .iter()
+            .fold((0, 0), |a, i| (a.0 + i.0 as u8, a.1 + i.1 as u8));
+        println!("{:?}", &acc);
+
+        match adjacent.len() {
+            5 => {
+                self.get_current_player_mut().add_remove(2);
+                true
+            }
+            4 => {
+                self.get_current_player_mut().add_remove(1);
+                true
+            }
+            3 => match acc {
+                (x, y) if x == 12 || y == 12 => {
+                    self.get_current_player_mut().add_remove(1);
+                    true
+                }
+                _ => false,
+            },
+            n => {
+                dbg!(n);
+                false
+            }
+        }
     }
 
     pub fn get_indices(x: u16, y: u16) -> Option<Indices> {
@@ -113,16 +184,17 @@ impl Board {
     }
 
     fn draw_rect(&self, f: &mut std::fmt::Formatter<'_>, w: usize, h: usize) -> std::fmt::Result {
-        let x = 18 - w / 2;
+        let x = 19 - w / 2;
         let y = 8 - h / 2;
 
         write!(f, "{}", Fg(LightBlack))?;
-        write!(f, "{}{}", goto(x + 1, y), "─".repeat(w))?;
+        write!(f, "{}{}", goto(x, y), "─".repeat(w))?;
 
-        for i in 1..h - 1 {
-            write!(f, "{}│{}│", goto(x, y + i), " ".repeat(w))?;
+        for i in 1..h {
+            write!(f, "{}│", goto(x, y + i))?;
+            write!(f, "{}│", goto(x + w, y + i))?;
         }
-        write!(f, "{}{}", goto(x + 1, h + y - 1), "─".repeat(w))
+        write!(f, "{}{}", goto(x, h + y), "─".repeat(w))
     }
 }
 
@@ -135,9 +207,9 @@ impl std::fmt::Display for Board {
         self.write_fg(f)?;
         self.write_bg(f)?;
         self.draw_board(f)?;
-        self.draw_rect(f, 29, 13)?;
-        self.draw_rect(f, 19, 9)?;
-        self.draw_rect(f, 9, 5)?;
+        self.draw_rect(f, 30, 12)?;
+        self.draw_rect(f, 20, 8)?;
+        self.draw_rect(f, 10, 4)?;
 
         for y in &INDICES {
             for x in &INDICES {

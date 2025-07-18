@@ -43,10 +43,10 @@ fn main() {
                         #[cfg(debug_assertions)]
                         write!(
                             stdout,
-                            "{}{}  {:?}",
-                            termion::cursor::Goto(30, 17 - board.modulo() as u16),
+                            "{}{}{}",
+                            termion::cursor::Goto(16, 8),
                             Fg(LightBlack),
-                            i
+                            format!("{:?}", i)
                         )
                         .unwrap();
                     };
