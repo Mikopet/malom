@@ -87,13 +87,89 @@ impl Board {
             // Phase 1: Placing Pieces
             if self.get_current_player().free_tokens() > 0 && field.empty() {
                 self.place_piece(index);
+                self.get_current_player_mut().add_point();
+            } else if self.get_current_player().free_tokens() == 0 {
+                self.move_piece(index);
+            } else if self.get_current_player().points() == 3 {
+                self.flying_piece(index);
             }
         };
     }
+    fn move_piece(&mut self, i: Indices) {
+        let mut player = self.get_current_player_mut();
+        if let Some(v) = player.selected {
+            let neighbour = player.neighbour(v);
+            let filtered_neighbour = self.filter_empty(neighbour);
+            println!(" Akár ide is mozgathattál volna: {:?} ", filtered_neighbour);
+            let mut found = false;
+            for num in &filtered_neighbour {
+                if num == &i {
+                    found = true;
+                    break;
+                }
+            }
+            if found {
+                self.remove(v);
+                let token = self.get_current_player().token;
+                self.insert(i, token);
+                if !self.mill(i) {
+                    self.switch_player();
+                }
+            } else {
+            }
+        } else {
+            if let Some(selected_token) = self.get(i) {
+                match selected_token {
+                    Field::Taken(token) => {
+                        let mut player: &mut Player;
+                        if *token == self.get_current_player().token {
+                            self.get_current_player_mut().set_selected(i);
+                            println!("Ezt mozgatod: {:?} Válassz egy célt!", i);
+                        } else {
+                            println!("Saját bábut válasszál!");
+                        }
+                    }
+                    Field::Empty => {
+                        println!("Válassz egy saját színű bábút!");
+                    }
+                }
+            }
+        }
+    }
+    /*
+        fn move_piece(&mut self, i: Indices) {
+        //let neighbour = self.neighbour(self.get_current_player().selected.unwrap());
+        let mut player = self.get_current_player_mut();
+        if let Some(v) = player.selected {
+            let neighbour = player.neighbour();
+            if self.filter_empty(neighbour).contains(&v) {
+                self.remove_piece(v);
+                self.place_piece(i);
+            }
+        } else {
+            player.set_selected(i);
+            let neighbour = player.neighbour();
+            if self.filter_empty(neighbour).len() == 0 {
+                player.selected = None;
+            }
+        }
+    }
+    */
 
+    fn filter_empty(&self, v: Vec<Indices>) -> Vec<Indices> {
+        let mut q = Vec::new();
+        for (i, f) in &self.fields {
+            if let Field::Empty = f {
+                q.push(*i);
+            }
+        }
+        q
+    }
+    fn flying_piece(&self, i: Indices) {}
     fn place_piece(&mut self, i: Indices) {
         let token = self.get_current_player_mut().use_token();
         self.insert(i, token);
+        self.get_current_player_mut().add_point();
         self.highlight = Some(i);
         if !self.mill(i) {
             self.switch_player();
