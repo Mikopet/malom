@@ -1,13 +1,14 @@
 mod board;
 mod field;
-mod index;
+mod gui;
 mod player;
+mod position;
 mod token;
 
 use board::*;
 use field::*;
-use index::*;
 use player::*;
+use position::*;
 use token::*;
 
 use termion::color::*;
@@ -37,16 +38,16 @@ fn main() {
             Event::Key(Key::Ctrl('c')) => break,
             Event::Mouse(me) => match me {
                 MouseEvent::Press(_, x @ 3..36, y @ 2..15) => {
-                    if let Some(i) = Board::get_indices(x, y) {
-                        board.play(i);
+                    if let Some(pos) = Position::translate(x, y) {
+                        board.play(&pos);
 
                         #[cfg(debug_assertions)]
                         write!(
                             stdout,
                             "{}{}{}",
-                            termion::cursor::Goto(16, 8),
+                            Goto(16, 8),
                             Fg(LightBlack),
-                            format!("{:?}", i)
+                            format!(" {}", &pos)
                         )
                         .unwrap();
                     };

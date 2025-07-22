@@ -1,25 +1,35 @@
 use super::*;
 
 #[derive(Debug)]
-pub enum Field {
-    Empty,
-    Taken(Token),
+pub struct Field {
+    pub vacancy: Option<Token>,
 }
 
 impl Field {
-    pub fn empty(&self) -> bool {
-        match self {
-            Field::Empty => true,
-            _ => false,
+    pub fn is_empty(&self) -> bool {
+        self.vacancy.is_none()
+    }
+
+    pub fn belongs_to(&self, color: &'static dyn Color) -> bool {
+        match self.vacancy {
+            Some(token) => token == Token(color),
+            None => false,
         }
+    }
+
+    pub fn vacate(&mut self) -> &Self {
+        self.vacancy.take();
+        self
+    }
+
+    pub fn occupy(&mut self, token: Token) -> &Self {
+        self.vacancy = Some(token);
+        self
     }
 }
 
-impl std::fmt::Display for Field {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Field::Empty => write!(f, "◌"),
-            Field::Taken(token) => write!(f, "{token}"),
-        }
+impl Default for Field {
+    fn default() -> Self {
+        Self { vacancy: None }
     }
 }

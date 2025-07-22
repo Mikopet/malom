@@ -2,322 +2,245 @@ use super::*;
 
 use std::collections::HashMap;
 
-const INDICES: [Index; 7] = [
-    Index::A,
-    Index::B,
-    Index::C,
-    Index::D,
-    Index::E,
-    Index::F,
-    Index::G,
-];
+// TODO: make board size configurable (Config struct)
+// const BOARD_SIZE: usize = 3;
+
+// TODO: change coordinate system
+pub const BOARD_RANGE: std::ops::Range<isize> = 1..8;
+// pub const BOARD_RANGE: std::ops::Range<isize> =
+//     0 - (BOARD_SIZE as isize)..1 + (BOARD_SIZE as isize);
 
 #[derive(Debug)]
 pub struct Board {
-    fields: HashMap<Indices, Field>,
+    fields: HashMap<Position, Field>,
     players: Vec<Player>,
-    current_player: usize,
-    highlight: Option<Indices>,
+    turn_count: usize,
+    selected: Option<Position>,
+    // highlight: Option<Position>,
 }
 
 impl Board {
     pub fn init() -> Self {
-        let mut board = HashMap::new();
+        let mut fields = HashMap::with_capacity(24);
 
-        for i in &INDICES {
-            for j in &INDICES {
-                let indices = (i, j);
-                let field = match indices {
-                    (Index::D, Index::D) => continue,
-                    (_, Index::D) => Field::Empty,
-                    (Index::D, _) => Field::Empty,
-                    (k, l) if k == l => Field::Empty,
-                    (k, l) if (8 - *k as u8) == (*l as u8) => Field::Empty,
+        for y in BOARD_RANGE {
+            for x in BOARD_RANGE {
+                match (x, y) {
+                    (4, 4) => continue,
+                    (_, 4) => {}
+                    (4, _) => {}
+                    (k, l) if k == l => {}
+                    (k, l) if (8 - k) == l => {}
                     _ => continue,
                 };
-                board.insert((*i, *j), field); // empty
+                fields.insert(Position::new(x, y), Field::default());
             }
         }
 
         Self {
-            fields: board,
+            fields,
             players: vec![Player::new(&White), Player::new(&Black)],
-            current_player: 0,
-            highlight: None,
+            turn_count: 0,
+            selected: None,
+            // highlight: None,
         }
     }
 
-    pub fn modulo(&self) -> usize {
-        self.current_player % 2
+    // Field related
+
+    pub fn get_field(&self, pos: &Position) -> Option<&Field> {
+        self.fields.get(pos)
     }
 
-    pub fn get(&self, index: Indices) -> Option<&Field> {
-        self.fields.get(&index)
+    pub fn get_field_mut(&mut self, pos: &Position) -> Option<&mut Field> {
+        self.fields.get_mut(pos)
     }
 
-    fn insert(&mut self, index: Indices, t: Token) {
-        self.fields.insert(index, Field::Taken(t));
-    }
-
-    fn remove(&mut self, index: Indices) {
-        self.fields.insert(index, Field::Empty);
-    }
-
-    fn get_current_player(&self) -> &Player {
-        let index = self.modulo();
-        self.players.get(index).unwrap()
-    }
-
-    fn get_current_player_mut(&mut self) -> &mut Player {
-        let index = self.modulo();
-        self.players.get_mut(index).unwrap()
-    }
-
-    pub fn play(&mut self, index: Indices) {
-        // force remove action
-        if let Some(Field::Taken(t)) = self.get(index) {
-            if self.get_current_player().get_remove() > 0 {
-                if self.get_current_player().token != *t {
-                    self.remove_piece(index);
-                    return;
-                }
+    fn set_field(&mut self, pos: &Position, token: Option<Token>) -> Option<&Field> {
+        if let Some(field) = self.fields.get_mut(pos) {
+            match token {
+                None => Some(field.vacate()),
+                Some(t) => Some(field.occupy(t)),
             }
-        }
-        if let Some(field) = self.get(index) {
-            // Phase 1: Placing Pieces
-            if self.get_current_player().free_tokens() > 0 && field.empty() {
-                self.place_piece(index);
-                self.get_current_player_mut().add_point();
-            } else if self.get_current_player().free_tokens() == 0 {
-                self.move_piece(index);
-            } else if self.get_current_player().points() == 3 {
-                self.flying_piece(index);
-            }
-        };
-    }
-    fn move_piece(&mut self, i: Indices) {
-        let mut player = self.get_current_player_mut();
-        if let Some(v) = player.selected {
-            let neighbour = player.neighbour(v);
-            let filtered_neighbour = self.filter_empty(neighbour);
-            println!(" Akár ide is mozgathattál volna: {:?} ", filtered_neighbour);
-            let mut found = false;
-            for num in &filtered_neighbour {
-                if num == &i {
-                    found = true;
-                    break;
-                }
-            }
-            if found {
-                self.remove(v);
-                let token = self.get_current_player().token;
-                self.insert(i, token);
-                if !self.mill(i) {
-                    self.switch_player();
-                }
-            } else {
-            }
-        } else {
-            if let Some(selected_token) = self.get(i) {
-                match selected_token {
-                    Field::Taken(token) => {
-                        let mut player: &mut Player;
-                        if *token == self.get_current_player().token {
-                            self.get_current_player_mut().set_selected(i);
-                            println!("Ezt mozgatod: {:?} Válassz egy célt!", i);
-                        } else {
-                            println!("Saját bábut válasszál!");
-                        }
-                    }
-                    Field::Empty => {
-                        println!("Válassz egy saját színű bábút!");
-                    }
-                }
-            }
-        }
-    }
-    /*
-        fn move_piece(&mut self, i: Indices) {
-        //let neighbour = self.neighbour(self.get_current_player().selected.unwrap());
-        let mut player = self.get_current_player_mut();
-        if let Some(v) = player.selected {
-            let neighbour = player.neighbour();
-            if self.filter_empty(neighbour).contains(&v) {
-                self.remove_piece(v);
-                self.place_piece(i);
-            }
-        } else {
-            player.set_selected(i);
-            let neighbour = player.neighbour();
-            if self.filter_empty(neighbour).len() == 0 {
-                player.selected = None;
-            }
-        }
-    }
-    */
-
-    fn filter_empty(&self, v: Vec<Indices>) -> Vec<Indices> {
-        let mut q = Vec::new();
-        for (i, f) in &self.fields {
-            if let Field::Empty = f {
-                q.push(*i);
-            }
-        }
-        q
-    }
-    fn flying_piece(&self, i: Indices) {}
-    fn place_piece(&mut self, i: Indices) {
-        let token = self.get_current_player_mut().use_token();
-        self.insert(i, token);
-        self.get_current_player_mut().add_point();
-        self.highlight = Some(i);
-        if !self.mill(i) {
-            self.switch_player();
-        }
-    }
-
-    fn remove_piece(&mut self, i: Indices) {
-        // let token = self.get_current_player_mut().use_token();
-        self.remove(i);
-        self.get_current_player_mut().remove_remove();
-        self.highlight = Some(i);
-        if self.get_current_player().get_remove() == 0 {
-            self.switch_player();
-        }
-    }
-    fn mill(&mut self, i: Indices) -> bool {
-        let token = self.get_current_player().token;
-
-        let adjacent = self
-            .fields
-            .iter_mut()
-            .filter(|((x, y), _)| match (i.0 as u8, i.1 as u8) {
-                (..4, 4) if *y == Index::D => *x < Index::D,
-                (4.., 4) if *y == Index::D => *x > Index::D,
-                (4, ..4) if *x == Index::D => *y < Index::D,
-                (4, 4..) if *x == Index::D => *y > Index::D,
-                _ => i.0 == *x || i.1 == *y,
-            })
-            .filter_map(|(i, f)| match f {
-                Field::Taken(t) if *t == token => Some(i),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-
-        let acc = adjacent
-            .iter()
-            .fold((0, 0), |a, i| (a.0 + i.0 as u8, a.1 + i.1 as u8));
-        println!("{:?}", &acc);
-
-        match adjacent.len() {
-            5 => {
-                self.get_current_player_mut().add_remove(2);
-                true
-            }
-            4 => {
-                self.get_current_player_mut().add_remove(1);
-                true
-            }
-            3 => match acc {
-                (x, y) if x == 12 || y == 12 => {
-                    self.get_current_player_mut().add_remove(1);
-                    true
-                }
-                _ => false,
-            },
-            n => {
-                dbg!(n);
-                false
-            }
-        }
-    }
-
-    pub fn get_indices(x: u16, y: u16) -> Option<Indices> {
-        let x1 = (x as f32 - 2.0) / 5.0;
-        let x2 = x1.ceil();
-        let x3 = x1 - x2;
-
-        if y % 2 == 0 && x3 < -0.21 {
-            Some((Index::from(x2 as u16), Index::from(y / 2)))
         } else {
             None
         }
     }
 
-    fn switch_player(&mut self) {
-        self.current_player += 1;
+    fn selected_field(&self) -> Option<Position> {
+        self.selected
+    }
+    fn select_field(&mut self, pos: &Position) {
+        self.selected = Some(*pos);
     }
 
-    /// DRAWING
-
-    fn draw_board(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", Fg(Black))?;
-        write!(f, "╋{}╋\n\r", "━".repeat(35))?;
-        for _ in 0..=12 {
-            write!(f, "┃{}┃\n\r", " ".repeat(35))?;
-        }
-        write!(f, "╋{}╋\n\r", "━".repeat(35))
+    fn deselect_field(&mut self) {
+        self.selected = None;
     }
 
-    fn draw_rect(&self, f: &mut std::fmt::Formatter<'_>, w: usize, h: usize) -> std::fmt::Result {
-        let x = 19 - w / 2;
-        let y = 8 - h / 2;
+    // Player related
 
-        write!(f, "{}", Fg(LightBlack))?;
-        write!(f, "{}{}", goto(x, y), "─".repeat(w))?;
-
-        for i in 1..h {
-            write!(f, "{}│", goto(x, y + i))?;
-            write!(f, "{}│", goto(x + w, y + i))?;
-        }
-        write!(f, "{}{}", goto(x, h + y), "─".repeat(w))
+    pub fn players(&self) -> &Vec<Player> {
+        &self.players
     }
-}
 
-fn goto(x: usize, y: usize) -> Goto {
-    Goto(x as u16, y as u16)
-}
+    pub fn get_current_player_index(&self) -> usize {
+        self.turn_count % self.players.len()
+    }
 
-impl std::fmt::Display for Board {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.write_fg(f)?;
-        self.write_bg(f)?;
-        self.draw_board(f)?;
-        self.draw_rect(f, 30, 12)?;
-        self.draw_rect(f, 20, 8)?;
-        self.draw_rect(f, 10, 4)?;
+    fn get_other_player_index(&self) -> usize {
+        (self.turn_count + 1) % self.players.len()
+    }
 
-        for y in &INDICES {
-            for x in &INDICES {
-                let indices = (*x, *y);
+    fn next_turn(&mut self) {
+        self.turn_count += 1;
+    }
 
-                if let Some(field) = self.get(indices) {
-                    write!(f, "{}", Goto(*x as u16 * 5 - 1, *y as u16 * 2),)?;
-                    write!(f, "{field}")?;
-                    self.write_fg(f)?;
-                    self.write_bg(f)?;
+    fn get_current_player(&self) -> &Player {
+        let index = self.get_current_player_index();
+        self.players.get(index).unwrap()
+    }
+
+    fn get_current_player_mut(&mut self) -> &mut Player {
+        let index = self.get_current_player_index();
+        self.players.get_mut(index).unwrap()
+    }
+
+    fn get_other_player_mut(&mut self) -> &mut Player {
+        let index = self.get_other_player_index();
+        self.players.get_mut(index).unwrap()
+    }
+
+    // Board related
+
+    pub fn play(&mut self, pos: &Position) {
+        // Phase Interruption: player has to remove pieces
+        if self.get_current_player().must_remove() {
+            let color = self.get_current_player().color;
+            if let Some(field) = self.get_field_mut(pos) {
+                if !field.belongs_to(color) {
+                    field.vacate();
+                    self.get_other_player_mut().increase_lost();
+                    self.get_current_player_mut().change_remove(-1);
+                }
+                if !self.get_current_player().must_remove() {
+                    self.next_turn();
                 }
             }
         }
 
-        for (i, p) in self.players.iter().enumerate() {
-            let current = if self.modulo() == i {
-                format!("{}*", Fg(LightCyan))
-            } else {
-                format!("{} ", Reset)
-            };
-            write!(f, "{}{}{current} {}\n\r", Goto(2, 16 + i as u16), Reset, p)?;
+        let player = self.get_current_player();
+
+        match player.hand_count() {
+            // Phase 1: Placing Pieces
+            1.. => self.place_piece(pos),
+            _ => match player.points() {
+                // Phase 2: Moving Pieces
+                3.. => self.move_piece(pos),
+                // Phase 3: Flying Pieces
+                _ => self.fly_piece(pos),
+            },
         }
-        Ok(())
-    }
-}
+        // self.highlight = Some(*pos.deref());
 
-impl Color for Board {
-    fn write_fg(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str(LightBlack.fg_str())
+        // TODO: probably if it's mill, turn count should be decrease
+        if !self.mill(pos) {
+            // self.previous_turn();
+        }
     }
 
-    fn write_bg(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str(LightYellow.bg_str())
+    fn place_piece(&mut self, pos: &Position) {
+        match self.get_field_mut(pos) {
+            // if clicked field is empty
+            Some(field) if field.is_empty() => {
+                // use the token and occupy the field
+                let token = self.get_current_player_mut().use_token();
+                self.set_field(pos, token);
+                // and then give the staff to the next player
+                self.next_turn();
+            }
+            _ => {}
+        };
+    }
+
+    fn move_piece(&mut self, pos: &Position) {
+        let selected_field = self.selected_field();
+
+        // If there were selection...
+        if let Some(p) = selected_field {
+            let neighbour = p.neighbours();
+            // ... and it was empty
+            if self.filter_empty(&neighbour).contains(&pos) {
+                // swap them
+                self.get_field_mut(&p).unwrap().vacate();
+                self.place_piece(pos);
+                // and remove selection
+                self.deselect_field();
+            }
+        // Otherwise ...
+        } else {
+            let neighbour = pos.neighbours();
+            // if it has an empty neighbour
+            if self.filter_empty(&neighbour).len() > 0 {
+                // select it
+                self.select_field(pos);
+            }
+        }
+    }
+
+    fn fly_piece(&self, _pos: &Position) {}
+
+    fn filter_empty(&self, v: &Vec<Position>) -> Vec<Position> {
+        v.iter()
+            .filter_map(|p| match self.get_field(p) {
+                None => Some(*p),
+                Some(_) => None,
+            })
+            .collect()
+    }
+
+    fn mill(&mut self, pos: &Position) -> bool {
+        let color = self.get_current_player().color;
+
+        let adjacent = self
+            .fields
+            .iter_mut()
+            .filter(|(Position { x, y }, _)| match (pos.x, pos.y) {
+                (..4, 4) if *y == 4 => *x < 4,
+                (4.., 4) if *y == 4 => *x > 4,
+                (4, ..4) if *x == 4 => *y < 4,
+                (4, 4..) if *x == 4 => *y > 4,
+                _ => pos.x == *x || pos.y == *y,
+            })
+            .filter_map(|(p, f)| match f.belongs_to(color) {
+                true => Some(p),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        let acc = adjacent.iter().fold(Position::new(0, 0), |p0, p| &p0 + *p);
+        println!("{:?}", &acc);
+
+        match adjacent.len() {
+            5 => {
+                self.get_current_player_mut().change_remove(2);
+                true
+            }
+            4 => {
+                self.get_current_player_mut().change_remove(1);
+                true
+            }
+            3 => {
+                let Position { x, y } = acc;
+                if x == 12 || y == 12 {
+                    self.get_current_player_mut().change_remove(1);
+                    true
+                } else {
+                    false
+                }
+            }
+
+            _ => false,
+        }
     }
 }
