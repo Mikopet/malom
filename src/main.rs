@@ -40,7 +40,10 @@ fn main() {
             Event::Mouse(me) => match me {
                 MouseEvent::Press(_, x @ 3..36, y @ 2..15) => {
                     if let Some(pos) = Position::translate(x, y) {
-                        board.play(&pos);
+                        if let Some(winner) = board.play(&pos) {
+                            writeln!(stdout, "{}{winner:?} won!\n\r", Fg(Red)).unwrap();
+                            break;
+                        }
 
                         #[cfg(debug_assertions)]
                         write!(stdout, "{}{}{pos:?}", Goto(2, 1), Fg(LightBlack),).unwrap();
@@ -55,4 +58,5 @@ fn main() {
     }
 
     writeln!(stdout, "{}\n\r", Reset).unwrap();
+    stdout.flush().unwrap();
 }

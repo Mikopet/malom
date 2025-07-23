@@ -50,4 +50,8 @@ impl Player {
     pub fn must_remove(&self) -> bool {
         self.remove > 0
     }
+
+    pub fn lost(&self) -> bool {
+        (self.points() + self.hand_count()) < 3
+    }
 }

@@ -95,7 +95,7 @@ impl Board {
 
     // Board related
 
-    pub fn play(&mut self, pos: &Position) {
+    pub fn play(&mut self, pos: &Position) -> Option<&dyn Color> {
         // Phase Interruption: player has to remove pieces
         if self.get_current_player().must_remove() {
             let color = self.get_current_player().color;
@@ -111,8 +111,12 @@ impl Board {
                 if !self.get_current_player().must_remove() {
                     self.next_turn();
                 }
+                // win condition
+                if self.get_current_player_mut().lost() {
+                    return Some(self.get_other_player_mut().color);
+                }
             }
-            return;
+            return None;
         }
 
         let player = self.get_current_player();
@@ -128,6 +132,8 @@ impl Board {
             },
         }
         // self.highlight = Some(*pos.deref());
+
+        None
     }
 
     fn place_piece(&mut self, pos: &Position) {
@@ -160,15 +166,21 @@ impl Board {
                 self.get_field_mut(&p).unwrap().vacate();
                 self.place_piece(pos);
                 // and remove selection
-                self.deselect_field();
             }
+            self.deselect_field();
         // Otherwise ...
         } else {
-            let neighbour = pos.neighbours();
-            // if it has an empty neighbour
-            if !self.filter_vacant(&neighbour).is_empty() {
-                // select it
-                self.select_field(pos);
+            if self
+                .get_field(pos)
+                .unwrap()
+                .belongs_to(self.get_current_player().color)
+            {
+                let neighbour = pos.neighbours();
+                // if it has an empty neighbour
+                if !self.filter_vacant(&neighbour).is_empty() {
+                    // select the requested field
+                    self.select_field(pos);
+                }
             }
         }
     }
