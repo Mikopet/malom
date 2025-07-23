@@ -2,6 +2,7 @@ use crate::*;
 
 impl std::fmt::Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // board
         self.write_fg(f)?;
         self.write_bg(f)?;
         self.draw_board(f)?;
@@ -9,6 +10,7 @@ impl std::fmt::Display for Board {
         self.draw_rect(f, 20, 8)?;
         self.draw_rect(f, 10, 4)?;
 
+        // tokens
         #[allow(unused_must_use)]
         Position::valid_fields().iter().for_each(|pos| {
             write!(f, "{pos}{}", self.get_field(&pos).unwrap());

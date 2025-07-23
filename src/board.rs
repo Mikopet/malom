@@ -135,8 +135,9 @@ impl Board {
             // if clicked field is empty
             Some(field) if field.is_empty() => {
                 // use the token and occupy the field
-                let token = self.get_current_player_mut().use_token();
-                self.set_field(pos, token);
+                self.get_current_player_mut().use_token();
+                let token = Token(self.get_current_player().color);
+                self.set_field(pos, Some(token));
                 // check mill
                 if !self.mill(pos) {
                     // and then give the staff to the next player
@@ -154,7 +155,7 @@ impl Board {
         if let Some(p) = selected_field {
             let neighbour = p.neighbours();
             // ... and it was empty
-            if self.filter_empty(&neighbour).contains(&pos) {
+            if self.filter_vacant(&neighbour).contains(&pos) {
                 // swap them
                 self.get_field_mut(&p).unwrap().vacate();
                 self.place_piece(pos);
@@ -165,7 +166,7 @@ impl Board {
         } else {
             let neighbour = pos.neighbours();
             // if it has an empty neighbour
-            if self.filter_empty(&neighbour).len() > 0 {
+            if !self.filter_vacant(&neighbour).is_empty() {
                 // select it
                 self.select_field(pos);
             }
@@ -174,11 +175,11 @@ impl Board {
 
     fn fly_piece(&self, _pos: &Position) {}
 
-    fn filter_empty(&self, v: &Vec<Position>) -> Vec<Position> {
+    fn filter_vacant(&self, v: &Vec<Position>) -> Vec<Position> {
         v.iter()
             .filter_map(|p| match self.get_field(p) {
-                None => Some(*p),
-                Some(_) => None,
+                Some(field) if field.is_empty() => Some(*p),
+                _ => None,
             })
             .collect()
     }
