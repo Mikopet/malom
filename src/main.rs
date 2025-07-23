@@ -53,4 +53,6 @@ fn main() {
         #[cfg(debug_assertions)]
         stdout.flush().unwrap();
     }
+
+    writeln!(stdout, "{}\n\r", Reset).unwrap();
 }

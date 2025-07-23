@@ -134,7 +134,12 @@ mod tests {
 
     #[test]
     fn test_translate() {
-        assert_eq!(Position::translate(0, 0), None);
-        assert_eq!(Position::translate(0, 0), Some(Position::new(4, 4)));
+        // invalid coordinates
+        assert_eq!(Position::translate(4, 3), None);
+        assert_eq!(Position::translate(7, 2), None);
+
+        // some valid ones
+        assert_eq!(Position::translate(4, 4), Some(Position::new(-3, -2)));
+        assert_eq!(Position::translate(19, 8), Some(Position::new(0, 0)));
     }
 }

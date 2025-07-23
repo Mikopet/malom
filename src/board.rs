@@ -99,16 +99,20 @@ impl Board {
         // Phase Interruption: player has to remove pieces
         if self.get_current_player().must_remove() {
             let color = self.get_current_player().color;
+
             if let Some(field) = self.get_field_mut(pos) {
-                if !field.belongs_to(color) {
-                    field.vacate();
-                    self.get_other_player_mut().increase_lost();
-                    self.get_current_player_mut().change_remove(-1);
+                if !field.is_empty() {
+                    if !field.belongs_to(color) {
+                        field.vacate();
+                        self.get_other_player_mut().increase_lost();
+                        self.get_current_player_mut().change_remove(-1);
+                    }
                 }
                 if !self.get_current_player().must_remove() {
                     self.next_turn();
                 }
             }
+            return;
         }
 
         let player = self.get_current_player();
@@ -124,11 +128,6 @@ impl Board {
             },
         }
         // self.highlight = Some(*pos.deref());
-
-        // TODO: probably if it's mill, turn count should be decrease
-        if !self.mill(pos) {
-            // self.previous_turn();
-        }
     }
 
     fn place_piece(&mut self, pos: &Position) {
@@ -138,8 +137,11 @@ impl Board {
                 // use the token and occupy the field
                 let token = self.get_current_player_mut().use_token();
                 self.set_field(pos, token);
-                // and then give the staff to the next player
-                self.next_turn();
+                // check mill
+                if !self.mill(pos) {
+                    // and then give the staff to the next player
+                    self.next_turn();
+                }
             }
             _ => {}
         };
@@ -220,7 +222,6 @@ impl Board {
                     false
                 }
             }
-
             _ => false,
         }
     }

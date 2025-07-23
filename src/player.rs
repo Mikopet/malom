@@ -26,8 +26,13 @@ impl Player {
     pub fn hand_count(&self) -> usize {
         self.hand.len()
     }
+
     pub fn points(&self) -> usize {
         TOKEN_COUNT - self.hand_count() - self.lost
+    }
+
+    pub fn removes(&self) -> isize {
+        self.remove
     }
 
     pub fn use_token(&mut self) -> Option<Token> {
