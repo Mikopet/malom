@@ -13,7 +13,7 @@ use token::*;
 
 use termion::clear::All;
 use termion::color::*;
-use termion::cursor::Goto;
+use termion::cursor::*;
 use termion::event::{Event, Key, MouseEvent};
 use termion::input::{MouseTerminal, TermRead};
 use termion::raw::IntoRawMode;

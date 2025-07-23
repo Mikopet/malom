@@ -40,7 +40,7 @@ impl Position {
         let x3 = x1 - x2;
 
         if y % 2 == 0 && x3 < -0.21 {
-            Some(Position::new(x2 as isize, (y / 2) as isize - 4))
+            Some(Self::new(x2 as isize, (y / 2) as isize - 4))
         } else {
             None
         }
@@ -59,7 +59,7 @@ impl Position {
             (x, y - x_delta).into(),
         ];
 
-        v.retain(|pos| Position::valid_fields().contains(pos));
+        v.retain(|pos| Self::valid_fields().contains(pos));
         v
     }
 }

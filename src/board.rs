@@ -8,7 +8,7 @@ pub struct Board {
     players: Vec<Player>,
     turn_count: usize,
     selected: Option<Position>,
-    // highlight: Option<Position>,
+    pub highlight: Option<Position>,
 }
 
 impl Board {
@@ -24,7 +24,7 @@ impl Board {
             players: vec![Player::new(&White), Player::new(&Black)],
             turn_count: 0,
             selected: None,
-            // highlight: None,
+            highlight: None,
         }
     }
 
@@ -49,7 +49,7 @@ impl Board {
         }
     }
 
-    fn selected_field(&self) -> Option<Position> {
+    pub fn selected_field(&self) -> Option<Position> {
         self.selected
     }
     fn select_field(&mut self, pos: &Position) {
@@ -96,6 +96,12 @@ impl Board {
     // Board related
 
     pub fn play(&mut self, pos: &Position) -> Option<&dyn Color> {
+        // early return on invalid fields
+        if self.get_field(pos).is_none() {
+            self.deselect_field();
+            return None;
+        }
+
         // Phase Interruption: player has to remove pieces
         if self.get_current_player().must_remove() {
             let color = self.get_current_player().color;
@@ -131,7 +137,7 @@ impl Board {
                 _ => self.fly_piece(pos),
             },
         }
-        // self.highlight = Some(*pos.deref());
+        self.highlight = Some(*pos);
 
         None
     }
