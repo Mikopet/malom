@@ -11,6 +11,7 @@ use player::*;
 use position::*;
 use token::*;
 
+use termion::clear::All;
 use termion::color::*;
 use termion::cursor::Goto;
 use termion::event::{Event, Key, MouseEvent};
@@ -26,11 +27,11 @@ fn main() {
     let stdin = stdin();
     let mut stdout = MouseTerminal::from(stdout().into_raw_mode().unwrap());
 
-    write!(stdout, "{}{}{board}", termion::clear::All, Goto(1, 1),).unwrap();
+    write!(stdout, "{}{}{board}", All, Goto(1, 1),).unwrap();
     stdout.flush().unwrap();
 
     for c in stdin.events() {
-        write!(stdout, "{}{}{board}", termion::clear::All, Goto(1, 1),).unwrap();
+        write!(stdout, "{}{}{board}", All, Goto(1, 1),).unwrap();
         stdout.flush().unwrap();
 
         let evt = c.unwrap();
@@ -42,14 +43,7 @@ fn main() {
                         board.play(&pos);
 
                         #[cfg(debug_assertions)]
-                        write!(
-                            stdout,
-                            "{}{}{}",
-                            Goto(16, 8),
-                            Fg(LightBlack),
-                            format!(" {}", &pos)
-                        )
-                        .unwrap();
+                        write!(stdout, "{}{}{pos:?}", Goto(2, 1), Fg(LightBlack),).unwrap();
                     };
                 }
                 _ => (),
@@ -59,6 +53,4 @@ fn main() {
         #[cfg(debug_assertions)]
         stdout.flush().unwrap();
     }
-
-    // write!(stdout, "bye");
 }

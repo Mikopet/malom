@@ -9,19 +9,12 @@ impl std::fmt::Display for Board {
         self.draw_rect(f, 20, 8)?;
         self.draw_rect(f, 10, 4)?;
 
-        for y in BOARD_RANGE {
-            for x in BOARD_RANGE {
-                let position = Position::new(x, y);
-
-                if let Some(field) = self.get_field(&position) {
-                    // TODO: this go to position display
-                    write!(f, "{}", Goto(x as u16 * 5 - 1, y as u16 * 2),)?;
-                    write!(f, "{field}")?;
-                    self.write_fg(f)?;
-                    self.write_bg(f)?;
-                }
-            }
-        }
+        #[allow(unused_must_use)]
+        Position::valid_fields().iter().for_each(|pos| {
+            write!(f, "{pos}{}", self.get_field(&pos).unwrap());
+            self.write_fg(f);
+            self.write_bg(f);
+        });
 
         // dashboard
         for (index, player) in self.players().iter().enumerate() {

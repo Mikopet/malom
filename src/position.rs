@@ -1,4 +1,7 @@
-use std::ops::Add;
+// TODO: make board size configurable (Config struct)
+pub const BOARD_SIZE: usize = 3;
+pub const BOARD_RANGE: std::ops::Range<isize> =
+    0 - (BOARD_SIZE as isize)..1 + (BOARD_SIZE as isize);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Position {
@@ -11,14 +14,33 @@ impl Position {
         Self { x, y }
     }
 
+    // TODO: cache it somewhere
+    pub fn valid_fields() -> Vec<Self> {
+        let mut v = vec![];
+        for y in BOARD_RANGE {
+            for x in BOARD_RANGE {
+                match (x, y) {
+                    (0, 0) => continue,
+                    (_, 0) => {}
+                    (0, _) => {}
+                    (k, l) if k == l => {}
+                    (k, l) if k == -l => {}
+                    _ => continue,
+                };
+                v.push(Position::new(x, y));
+            }
+        }
+        v
+    }
+
+    // TODO: fix this mess
     pub fn translate(x: u16, y: u16) -> Option<Self> {
-        // TODO: coordinates changed
-        let x1 = (x as f32 - 2.0) / 5.0;
+        let x1 = (x as f32 - 7.0) / 5.0 - 3.0;
         let x2 = x1.ceil();
         let x3 = x1 - x2;
 
         if y % 2 == 0 && x3 < -0.21 {
-            Some(Position::new(x2 as isize, (y / 2) as isize))
+            Some(Position::new(x2 as isize, (y / 2) as isize - 4))
         } else {
             None
         }
@@ -27,19 +49,18 @@ impl Position {
     pub fn neighbours(&self) -> Vec<Self> {
         let Self { x, y } = *self;
 
-        vec![
-            (x + 1, y).into(),
-            (x, y + 1).into(),
-            (x - 1, y).into(),
-            (x, y - 1).into(),
-        ]
+        let x_delta = if x != 0 { x.abs() } else { 1 };
+        let y_delta = if y != 0 { y.abs() } else { 1 };
 
-        // ditch invalids
-        // let filtered_v: Vec<Indices> = v
-        //     .into_iter()
-        //     .filter(|i| (i.0 as u8 >= 1 || i.1 as u8 >= 1) && (i.0 as u8 <= 7 || i.1 as u8 <= 7))
-        //     .collect();
-        // filtered_v
+        let mut v = vec![
+            (x + y_delta, y).into(),
+            (x - y_delta, y).into(),
+            (x, y + x_delta).into(),
+            (x, y - x_delta).into(),
+        ];
+
+        v.retain(|pos| Position::valid_fields().contains(pos));
+        v
     }
 }
 
@@ -49,7 +70,7 @@ impl From<(isize, isize)> for Position {
     }
 }
 
-impl<'a, 'b> Add<&'b Position> for &'a Position {
+impl<'a, 'b> std::ops::Add<&'b Position> for &'a Position {
     type Output = Position;
 
     fn add(self, rhs: &'b Position) -> Self::Output {
@@ -65,9 +86,55 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_neighbours() {
+    fn test_valid_fields() {
+        let fields = Position::valid_fields();
+        assert!(fields.contains(&Position::new(1, 1)));
+        assert!(fields.contains(&Position::new(3, 3)));
+    }
+
+    #[test]
+    fn test_invalid_fields() {
+        let fields = Position::valid_fields();
+        assert!(!fields.contains(&Position::new(0, 0)));
+        assert!(!fields.contains(&Position::new(4, 4)));
+        assert!(!fields.contains(&Position::new(-1, -2)));
+        assert!(!fields.contains(&Position::new(2, 3)));
+    }
+
+    #[test]
+    fn test_neighbours_top_corner() {
         let pos = Position::new(1, 1);
-        let neighbours = pos.neighbours();
-        assert_eq!(neighbours.len(), 4);
+        assert_eq!(pos.neighbours().len(), 2);
+    }
+    #[test]
+    fn test_neighbours_top_middle() {
+        let pos = Position::new(0, -3);
+        let n = pos.neighbours();
+        dbg!(n);
+        assert_eq!(pos.neighbours().len(), 3);
+    }
+
+    #[test]
+    fn test_neighbours_middle_middle() {
+        let pos = Position::new(0, -2);
+        assert_eq!(pos.neighbours().len(), 4);
+    }
+
+    #[test]
+    fn test_neighbours_middle_bottom() {
+        let pos = Position::new(0, -1);
+        assert_eq!(pos.neighbours().len(), 3);
+    }
+
+    #[test]
+    fn test_neighbours_middle_corner() {
+        let pos = Position::new(2, 2);
+        assert_eq!(pos.neighbours().len(), 2);
+    }
+
+    #[test]
+    fn test_translate() {
+        assert_eq!(Position::translate(0, 0), None);
+        assert_eq!(Position::translate(0, 0), Some(Position::new(4, 4)));
     }
 }

@@ -2,14 +2,6 @@ use super::*;
 
 use std::collections::HashMap;
 
-// TODO: make board size configurable (Config struct)
-// const BOARD_SIZE: usize = 3;
-
-// TODO: change coordinate system
-pub const BOARD_RANGE: std::ops::Range<isize> = 1..8;
-// pub const BOARD_RANGE: std::ops::Range<isize> =
-//     0 - (BOARD_SIZE as isize)..1 + (BOARD_SIZE as isize);
-
 #[derive(Debug)]
 pub struct Board {
     fields: HashMap<Position, Field>,
@@ -23,19 +15,9 @@ impl Board {
     pub fn init() -> Self {
         let mut fields = HashMap::with_capacity(24);
 
-        for y in BOARD_RANGE {
-            for x in BOARD_RANGE {
-                match (x, y) {
-                    (4, 4) => continue,
-                    (_, 4) => {}
-                    (4, _) => {}
-                    (k, l) if k == l => {}
-                    (k, l) if (8 - k) == l => {}
-                    _ => continue,
-                };
-                fields.insert(Position::new(x, y), Field::default());
-            }
-        }
+        Position::valid_fields().iter().for_each(|pos| {
+            fields.insert(*pos, Field::default());
+        });
 
         Self {
             fields,
@@ -206,10 +188,10 @@ impl Board {
             .fields
             .iter_mut()
             .filter(|(Position { x, y }, _)| match (pos.x, pos.y) {
-                (..4, 4) if *y == 4 => *x < 4,
-                (4.., 4) if *y == 4 => *x > 4,
-                (4, ..4) if *x == 4 => *y < 4,
-                (4, 4..) if *x == 4 => *y > 4,
+                (..0, 0) if *y == 0 => *x < 0,
+                (0.., 0) if *y == 0 => *x > 0,
+                (0, ..0) if *x == 0 => *y < 0,
+                (0, 0..) if *x == 0 => *y > 0,
                 _ => pos.x == *x || pos.y == *y,
             })
             .filter_map(|(p, f)| match f.belongs_to(color) {
@@ -219,7 +201,6 @@ impl Board {
             .collect::<Vec<_>>();
 
         let acc = adjacent.iter().fold(Position::new(0, 0), |p0, p| &p0 + *p);
-        println!("{:?}", &acc);
 
         match adjacent.len() {
             5 => {
@@ -232,7 +213,7 @@ impl Board {
             }
             3 => {
                 let Position { x, y } = acc;
-                if x == 12 || y == 12 {
+                if x == 0 || y == 0 {
                     self.get_current_player_mut().change_remove(1);
                     true
                 } else {
