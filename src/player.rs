@@ -1,10 +1,5 @@
 use super::*;
 
-#[cfg(debug_assertions)]
-const TOKEN_COUNT: usize = 4;
-#[cfg(not(debug_assertions))]
-const TOKEN_COUNT: usize = 9;
-
 #[derive(Debug)]
 pub struct Player {
     pub color: &'static dyn Color,

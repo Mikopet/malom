@@ -10,3 +10,9 @@ impl PartialEq for Token {
         c1 == c2
     }
 }
+
+impl From<&'static dyn Color> for Token {
+    fn from(color: &'static dyn Color) -> Self {
+        Self(color)
+    }
+}

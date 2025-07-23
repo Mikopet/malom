@@ -21,6 +21,11 @@ use termion::style::Reset;
 
 use std::io::{Write, stdin, stdout};
 
+#[cfg(debug_assertions)]
+const TOKEN_COUNT: usize = 4;
+#[cfg(not(debug_assertions))]
+const TOKEN_COUNT: usize = 9;
+
 fn main() {
     let board = &mut Board::init();
 
